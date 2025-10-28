@@ -1,0 +1,289 @@
+openapi: 3.0.3
+info:
+  title: Document Comparison API
+  description: API for comparing two text documents and highlighting differences
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.document-compare.example.com
+    description: Production server
+
+paths:
+  /api/v1/compare:
+    post:
+      summary: Compare two documents
+      description: |
+        Accepts two text files and returns a detailed comparison showing all differences
+        between them. Differences are categorized as additions, deletions, or modifications.
+      operationId: compareDocuments
+      tags:
+        - comparison
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file1
+                - file2
+              properties:
+                file1:
+                  type: string
+                  format: binary
+                  description: First document to compare
+                file2:
+                  type: string
+                  format: binary
+                  description: Second document to compare
+      responses:
+        '200':
+          description: Comparison completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonResult'
+              examples:
+                with_changes:
+                  summary: Documents with differences
+                  value:
+                    document1_name: version1.txt
+                    document2_name: version2.txt
+                    total_changes: 3
+                    additions: 1
+                    deletions: 1
+                    modifications: 1
+                    changes:
+                      - change_type: add
+                        line_number_old: null
+                        line_number_new: 3
+                        old_content: null
+                        new_content: "This is a new line"
+                        is_modified: false
+                      - change_type: delete
+                        line_number_old: 5
+                        line_number_new: null
+                        old_content: "This line was removed"
+                        new_content: null
+                        is_modified: false
+                      - change_type: modify
+                        line_number_old: 8
+                        line_number_new: 7
+                        old_content: "Hello World"
+                        new_content: "Hello Beautiful World"
+                        is_modified: true
+                    compared_at: "2025-10-29T10:30:00Z"
+                    is_identical: false
+                identical:
+                  summary: Identical documents
+                  value:
+                    document1_name: file1.txt
+                    document2_name: file2.txt
+                    total_changes: 0
+                    additions: 0
+                    deletions: 0
+                    modifications: 0
+                    changes: []
+                    compared_at: "2025-10-29T10:30:00Z"
+                    is_identical: true
+        '400':
+          description: Invalid request (file validation failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                file_too_large:
+                  summary: File exceeds size limit
+                  value:
+                    detail: "File size exceeds maximum limit of 10MB"
+                    error_code: FILE_TOO_LARGE
+                invalid_file_type:
+                  summary: Non-text file provided
+                  value:
+                    detail: "File must be a text document, binary files not supported"
+                    error_code: INVALID_FILE_TYPE
+                missing_file:
+                  summary: Required file not provided
+                  value:
+                    detail: "Both file1 and file2 are required"
+                    error_code: MISSING_FILE
+        '500':
+          description: Server error during comparison
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                comparison_failed:
+                  summary: Unexpected error during processing
+                  value:
+                    detail: "An error occurred while comparing documents"
+                    error_code: COMPARISON_FAILED
+                timeout:
+                  summary: Comparison timeout
+                  value:
+                    detail: "Comparison took longer than allowed timeout"
+                    error_code: TIMEOUT_ERROR
+
+  /api/v1/health:
+    get:
+      summary: Health check
+      description: Returns the health status of the API
+      operationId: healthCheck
+      tags:
+        - health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                version: "1.0.0"
+
+components:
+  schemas:
+    ComparisonResult:
+      type: object
+      required:
+        - document1_name
+        - document2_name
+        - total_changes
+        - additions
+        - deletions
+        - modifications
+        - changes
+        - compared_at
+        - is_identical
+      properties:
+        document1_name:
+          type: string
+          description: Filename of the first document
+          example: version1.txt
+        document2_name:
+          type: string
+          description: Filename of the second document
+          example: version2.txt
+        total_changes:
+          type: integer
+          minimum: 0
+          description: Total number of differences found
+          example: 5
+        additions:
+          type: integer
+          minimum: 0
+          description: Number of lines added in the second document
+          example: 2
+        deletions:
+          type: integer
+          minimum: 0
+          description: Number of lines deleted from the first document
+          example: 1
+        modifications:
+          type: integer
+          minimum: 0
+          description: Number of lines modified between documents
+          example: 2
+        changes:
+          type: array
+          description: List of all changes between documents
+          items:
+            $ref: '#/components/schemas/DiffChange'
+        compared_at:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when comparison was performed
+          example: "2025-10-29T10:30:00Z"
+        is_identical:
+          type: boolean
+          description: True if documents are identical (no differences)
+          example: false
+
+    DiffChange:
+      type: object
+      required:
+        - change_type
+        - is_modified
+      properties:
+        change_type:
+          type: string
+          enum: [add, delete, modify]
+          description: Type of change detected
+          example: add
+        line_number_old:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Line number in the first document (null for additions)
+          example: 5
+        line_number_new:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Line number in the second document (null for deletions)
+          example: 3
+        old_content:
+          type: string
+          nullable: true
+          description: Original line content (null for additions)
+          example: "This line was removed"
+        new_content:
+          type: string
+          nullable: true
+          description: New line content (null for deletions)
+          example: "This is a new line"
+        is_modified:
+          type: boolean
+          description: True if line was modified (not a pure add/delete)
+          example: false
+
+    Error:
+      type: object
+      required:
+        - detail
+        - error_code
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: "File size exceeds maximum limit of 10MB"
+        error_code:
+          type: string
+          enum:
+            - FILE_TOO_LARGE
+            - INVALID_FILE_TYPE
+            - MISSING_FILE
+            - ENCODING_ERROR
+            - COMPARISON_FAILED
+            - TIMEOUT_ERROR
+          description: Machine-readable error code
+          example: FILE_TOO_LARGE
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Current health status of the API
+          example: healthy
+        version:
+          type: string
+          description: API version number
+          example: "1.0.0"
+
+tags:
+  - name: comparison
+    description: Document comparison operations
+  - name: health
+    description: Health check endpoints
