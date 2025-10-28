@@ -7,7 +7,12 @@ from fastapi.responses import JSONResponse
 
 from .models import ComparisonResult, ErrorResponse, HealthResponse
 from ..services.diff_service import DiffService
-from ..utils.validators import decode_file_content, validate_file_size, validate_file_type
+from ..utils.validators import (
+    decode_file_content,
+    extract_pdf_text,
+    validate_file_size,
+    validate_file_type,
+)
 
 router = APIRouter()
 
@@ -74,14 +79,33 @@ async def compare_documents(
                 detail=error_msg,
             )
 
-        # Decode file contents
+        # Decode file contents (handle PDF and text files)
         try:
-            content1, encoding1 = decode_file_content(content1_bytes)
-            content2, encoding2 = decode_file_content(content2_bytes)
+            import os
+
+            # Check if files are PDFs
+            _, ext1 = os.path.splitext((file1.filename or "").lower())
+            _, ext2 = os.path.splitext((file2.filename or "").lower())
+
+            if ext1 == ".pdf":
+                content1 = extract_pdf_text(content1_bytes)
+            else:
+                content1, _ = decode_file_content(content1_bytes)
+
+            if ext2 == ".pdf":
+                content2 = extract_pdf_text(content2_bytes)
+            else:
+                content2, _ = decode_file_content(content2_bytes)
+
         except UnicodeDecodeError as e:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unable to decode file: {str(e)}",
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error processing file: {str(e)}",
             )
 
         # Perform comparison

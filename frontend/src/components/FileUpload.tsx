@@ -50,7 +50,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           type="file"
           onChange={handleFileChange}
           className="hidden"
-          accept=".txt,.md,.py,.js,.ts,.jsx,.tsx,.json,.yaml,.yml,.xml,.html,.css,.scss,.java,.c,.cpp,.h,.hpp,.rs,.go,.rb,.php,.sh,.bash,.sql"
+          accept=".txt,.md,.py,.js,.ts,.jsx,.tsx,.json,.yaml,.yml,.xml,.html,.css,.scss,.java,.c,.cpp,.h,.hpp,.rs,.go,.rb,.php,.sh,.bash,.sql,.pdf"
         />
 
         {file ? (
@@ -114,7 +114,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               Click to browse or drag and drop
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              Text files only (max 10MB)
+              Text files or PDF (max 10MB, max 10 pages for PDF)
             </p>
           </div>
         )}
